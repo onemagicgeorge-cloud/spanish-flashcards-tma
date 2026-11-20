@@ -1,102 +1,59 @@
-id;topic;es;uk;example
-1;Повсякденні фрази;Hola, ¿qué tal?;Привіт, як справи?;Hola, ¿qué tal? Todo bien, gracias.
-2;Повсякденні фрази;Buenos días;Доброго ранку;Buenos días, profesor.
-3;Повсякденні фрази;Buenas tardes;Доброго дня;Buenas tardes, amigos.
-4;Повсякденні фрази;Buenas noches;Доброї ночі / вечора;Buenas noches a todos.
-5;Повсякденні фрази;Por favor;Будь ласка;Un café, por favor.
-6;Повсякденні фрази;Muchas gracias;Дуже дякую;Muchas gracias por tu ayuda.
-7;Повсякденні фрази;De nada;Нема за що;De nada, amigo mío.
-8;Повсякденні фрази;Lo siento;Вибачте;Lo siento, llego tarde.
-9;Повсякденні фрази;¿Cómo te llamas?;Як тебе звати?;Hola, ¿cómo te llamas?
-10;Повсякденні фрази;Mucho gusto;Приємно познайомитися;Mucho gusto en conocerte.
-11;Повсякденні фрази;Hasta luego;До зустрічі;Hasta luego, nos vemos mañana.
-12;Повсякденні фрази;Sí / No;Так / Ні;Sí, me gusta mucho el café.
-13;Повсякденні фрази;Не entiendo;Я не розумію;Lo siento, no entiendo español muy bien.
-14;Повсякденні фрази;¿Hablas inglés?;Ти розмовляєш англійською?;Disculpe, ¿hablas inglés?
-15;Повсякденні фрази;Ayuda, por favor;Допоможіть, будь ласка;¡Ayuda, por favor! Necesito un médico.
-16;Їжа та ресторани;Una mesa para dos, por favor;Столик на двох, будь ласка;Una mesa para dos, por favor, cerca de la ventana.
-17;Їжа та ресторани;La cuenta, por favor;Рахунок, будь ласка;La cuenta, por favor, estamos listos.
-18;Їжа та ресторани;Tengo hambre;Я голодний;Tengo hambre, vamos a comer algo.
-19;Їжа та ресторани;Tengo sed;Я хочу пити;Tengo sed, necesito agua fría.
-20;Їжа та ресторани;¿Cuánto cuesta?;Скільки це коштує?;¿Cuánto cuesta esta manzana?
-21;Їжа та ресторани;El agua;Вода;Un vaso de agua, por favor.
-22;Їжа та ресторани;El café;Кава;Me gusta tomar café por la mañana.
-23;Їжа та ресторани;La comida;Їжа;La comida española es deliciosa.
-24;Їжа та ресторани;El pan;Хліб;El pan recién horneado es delicioso.
-25;Їжа та ресторани;La fruta;Фрукти;Comer fruta fresca es saludable.
-26;Подорожі та транспорт;¿Dónde está el baño?;Де знаходиться туалет?;Disculpe, ¿dónde está el baño?
-27;Подорожі та транспорт;Quiero ir al aeropuerto;Я хочу поїхати в аеропорт;Quiero ir al aeropuerto en taxi.
-28;Подорожі та транспорт;¿A qué hora sale el tren?;О котрій години відправляється поїзд?;¿A qué hora sale el tren a Madrid?
-29;Подорожі та транспорт;Un billete de ida y vuelta;Квиток туди і назад;Un billete de ida y vuelta a Barcelona, por favor.
-30;Подорожі та транспорт;La calle;Вулиця;Esta calle es muy bonita.
-31;Подорожі та транспорт;El hotel;Готель;¿Dónde está el hotel central?
-32;Подорожі та транспорт;El autobús;Автобус;El autobús llega a las cinco.
-33;Числа та дати;Uno, dos, tres;Один, два, три;Uno, dos, tres, ¡vamos!
-34;Числа та дати;Cuatro, cinco, seis;Чотири, п'ять, шість;Tengo cuatro manzanas.
-35;Числа та дати;Siete, ocho, nueve, diez;Сім, вісім, дев'ять, десять;Contamos de siete a diez.
-36;Числа та дати;Hoy;Сьогодні;Hoy es un día hermoso.
-37;Числа та дати;Mañana;Завтра;Nos vemos mañana por la mañana.
-38;Числа та дати;Ayer;Учора;Ayer fui al parque.
-39;Базові дієслова;Querer;Хотіти;Quiero aprender español.
-40;Базові дієслова;Tener;Мати;Tengo una pregunta.
-41;Базові дієслова;Hacer;Робити;¿Qué haces hoy?
-42;Базові дієслова;Ir;Іти / Їхати;Vamos a la playa este fin de semana.
-43;Одяг та ціни (La ropa y los precios);¿Cuál es el precio de...?;Яка ціна...?;
-44;Одяг та ціни (La ropa y los precios);¿Cuánto es?;Скільки це коштує? / Скільки з мене? (за все);
-45;Одяг та ціни (La ropa y los precios);¿Cuánto es el total?;Яка загальна сума? / Скільки всього?;
-46;Одяг та ціни (La ropa y los precios);costar (o → ue);коштувати (неправильне дієслово);
-47;Одяг та ціни (La ropa y los precios);¿Cuánto cuesta...?;Скільки коштує...? (однина);
-48;Одяг та ціни (La ropa y los precios);¿Cuánto cuestan...?;Скільки коштують...? (множина);
-49;Одяг та ціни (La ropa y los precios);valer;коштувати, мати ціну;
-50;Одяг та ціни (La ropa y los precios);¿Cuánto vale...?;Скільки коштує...? (однина);
-51;Одяг та ціни (La ropa y los precios);¿Cuánto valen...?;Скільки коштують...? (множина);
-52;Одяг та ціни (La ropa y los precios);el precio;ціна;
-53;Одяг та ціни (La ropa y los precios);pedir la cuenta;попросити рахунок;
-54;Одяг та ціни (La ropa y los precios);el euro / los euros;євро;
-55;Одяг та ціни (La ropa y los precios);el céntimo / los céntimos;цент / центи;
-56;Одяг та ціни (La ropa y los precios);doce con cincuenta (12,50);дванадцять п'ятдесят (про ціну);
-57;Одяг та ціни (La ropa y los precios);¡Qué caro! / ¡Qué cara!;Як дорого! (ч.р. / ж.р.);
-58;Одяг та ціни (La ropa y los precios);¡Qué barato! / ¡Qué barata!;Як дешево! (ч.р. / ж.р.);
-59;Одяг та ціни (La ropa y los precios);es gratis;це безкоштовно;
-60;Одяг та ціни (La ropa y los precios);no pagar nada;нічого не платити;
-61;Одяг та ціни (La ropa y los precios);la ropa;одяг;
-62;Одяг та ціни (La ropa y los precios);la ropa de deporte;спортивний одяг;
-63;Одяг та ціни (La ropa y los precios);la camiseta;футболка;
-64;Одяг та ціни (La ropa y los precios);la camiseta de manga corta;футболка з коротким рукавом;
-65;Одяг та ціни (La ropa y los precios);la camiseta de manga larga;лонгслів / футболка з довгим рукавом;
-66;Одяг та ціни (La ropa y los precios);la camisa;сорочка;
-67;Одяг та ціни (La ropa y los precios);el pantalón / los pantalones;штани;
-68;Одяг та ціни (La ropa y los precios);la chaqueta;куртка, піджак, жакет;
-69;Одяг та ціни (La ropa y los precios);el abrigo;пальто, зимова куртка;
-70;Одяг та ціни (La ropa y los precios);el anorak;анорак, тепла куртка;
-71;Одяг та ціни (La ropa y los precios);el chándal;спортивний костюм;
-72;Одяг та ціни (La ropa y los precios);el jersey;светр, джемпер;
-73;Одяг та ціни (La ropa y los precios);el jersey de cuello alto;водолазка / светр з високим горлом;
-74;Одяг та ціни (La ropa y los precios);el vestido;сукня;
-75;Одяг та ціни (La ropa y los precios);la falda;спідниця;
-76;Одяг та ціни (La ropa y los precios);la sudadera;світшот, худі, толстовка;
-77;Одяг та ціни (La ropa y los precios);las bragas;жіночі труси;
-78;Одяг та ціни (La ropa y los precios);los calzoncillos;чоловічі труси;
-79;Одяг та ціни (La ropa y los precios);los calcetines;шкарпетки;
-80;Одяг та ціни (La ropa y los precios);los zapatos;туфлі, взуття;
-81;Одяг та ціни (La ropa y los precios);las zapatillas (de deporte);кросівки;
-82;Одяг та ціни (La ropa y los precios);las botas;чоботи, черевики;
-83;Одяг та ціни (La ropa y los precios);los tacones;підбори / туфлі на підборах;
-84;Одяг та ціни (La ropa y los precios);la gorra;кепка, бейсболка;
-85;Одяг та ціни (La ropa y los precios);el gorro;шапка;
-86;Одяг та ціни (La ropa y los precios);la bufanda;шарф;
-87;Одяг та ціни (La ropa y los precios);el cinturón;ремінь, пояс;
-88;Одяг та ціни (La ropa y los precios);el anillo;каблучка, перстень;
-89;Одяг та ціни (La ropa y los precios);los pendientes;сережки;
-90;Одяг та ціни (La ropa y los precios);la mochila;рюкзак;
-91;Одяг та ціни (La ropa y los precios);la cremallera;блискавка (застібка);
-92;Одяг та ціни (La ropa y los precios);el bolsillo;кишеня;
-93;Одяг та ціни (La ropa y los precios);la tienda de ropa;магазин одягу;
-94;Одяг та ціни (La ropa y los precios);No pasa nada;Нічого страшного / Все гаразд;
-95;Одяг та ціни (La ropa y los precios);No te preocupes;Не хвилюйся;
-96;Одяг та ціни (La ropa y los precios);¡Menos mal!;Слава Богу! / Добре, що так!;
-97;Одяг та ціни (La ropa y los precios);¡Cuidado!;Обережно!;
-98;Одяг та ціни (La ropa y los precios);¡Venga!;Давай! / Нумо!;
-99;Одяг та ціни (La ropa y los precios);¿Cómo se dice en español...?;Як сказати іспанською...?;
-100;Одяг та ціни (La ropa y los precios);Yo necesito...;Мені потрібно...;
-101;Одяг та ціни (La ropa y los precios);Yo quiero...;Я хочу...;
+1;Одяг та ціни (La ropa y los precios);¿Cuál es el precio de...?;Яка ціна...?;
+2;Одяг та ціни (La ropa y los precios);¿Cuánto es?;Скільки це коштує? / Скільки з мене? (за все);
+3;Одяг та ціни (La ropa y los precios);¿Cuánto es el total?;Яка загальна сума? / Скільки всього?;
+4;Одяг та ціни (La ropa y los precios);costar (o → ue);коштувати (неправильне дієслово);
+5;Одяг та ціни (La ropa y los precios);¿Cuánto cuesta...?;Скільки коштує...? (однина);
+6;Одяг та ціни (La ropa y los precios);¿Cuánto cuestan...?;Скільки коштують...? (множина);
+7;Одяг та ціни (La ropa y los precios);valer;коштувати, мати ціну;
+8;Одяг та ціни (La ropa y los precios);¿Cuánto vale...?;Скільки коштує...? (однина);
+9;Одяг та ціни (La ropa y los precios);¿Cuánto valen...?;Скільки коштують...? (множина);
+10;Одяг та ціни (La ropa y los precios);el precio;ціна;
+11;Одяг та ціни (La ropa y los precios);pedir la cuenta;попросити рахунок;
+12;Одяг та ціни (La ropa y los precios);el euro / los euros;євро;
+13;Одяг та ціни (La ropa y los precios);el céntimo / los céntimos;цент / центи;
+14;Одяг та ціни (La ropa y los precios);doce con cincuenta (12,50);дванадцять п'ятдесят (про ціну);
+15;Одяг та ціни (La ropa y los precios);¡Qué caro! / ¡Qué cara!;Як дорого! (ч.р. / ж.р.);
+16;Одяг та ціни (La ropa y los precios);¡Qué barato! / ¡Qué barata!;Як дешево! (ч.р. / ж.р.);
+17;Одяг та ціни (La ropa y los precios);es gratis;це безкоштовно;
+18;Одяг та ціни (La ropa y los precios);no pagar nada;нічого не платити;
+19;Одяг та ціни (La ropa y los precios);la ropa;одяг;
+20;Одяг та ціни (La ropa y los precios);la ropa de deporte;спортивний одяг;
+21;Одяг та ціни (La ropa y los precios);la camiseta;футболка;
+22;Одяг та ціни (La ropa y los precios);la camiseta de manga corta;футболка з коротким рукавом;
+23;Одяг та ціни (La ropa y los precios);la camiseta de manga larga;лонгслів / футболка з довгим рукавом;
+24;Одяг та ціни (La ropa y los precios);la camisa;сорочка;
+25;Одяг та ціни (La ropa y los precios);el pantalón / los pantalones;штани;
+26;Одяг та ціни (La ropa y los precios);la chaqueta;куртка, піджак, жакет;
+27;Одяг та ціни (La ropa y los precios);el abrigo;пальто, зимова куртка;
+28;Одяг та ціни (La ropa y los precios);el anorak;анорак, тепла куртка;
+29;Одяг та ціни (La ropa y los precios);el chándal;спортивний костюм;
+30;Одяг та ціни (La ropa y los precios);el jersey;светр, джемпер;
+31;Одяг та ціни (La ropa y los precios);el jersey de cuello alto;водолазка / светр з високим горлом;
+32;Одяг та ціни (La ropa y los precios);el vestido;сукня;
+33;Одяг та ціни (La ropa y los precios);la falda;спідниця;
+34;Одяг та ціни (La ropa y los precios);la sudadera;світшот, худі, толстовка;
+35;Одяг та ціни (La ropa y los precios);las bragas;жіночі труси;
+36;Одяг та ціни (La ropa y los precios);los calzoncillos;чоловічі труси;
+37;Одяг та ціни (La ropa y los precios);los calcetines;шкарпетки;
+38;Одяг та ціни (La ropa y los precios);los zapatos;туфлі, взуття;
+39;Одяг та ціни (La ropa y los precios);las zapatillas (de deporte);кросівки;
+40;Одяг та ціни (La ropa y los precios);las botas;чоботи, черевики;
+41;Одяг та ціни (La ropa y los precios);los tacones;підбори / туфлі на підборах;
+42;Одяг та ціни (La ropa y los precios);la gorra;кепка, бейсболка;
+43;Одяг та ціни (La ropa y los precios);el gorro;шапка;
+44;Одяг та ціни (La ropa y los precios);la bufanda;шарф;
+45;Одяг та ціни (La ropa y los precios);el cinturón;ремінь, пояс;
+46;Одяг та ціни (La ropa y los precios);el anillo;каблучка, перстень;
+47;Одяг та ціни (La ropa y los precios);los pendientes;сережки;
+48;Одяг та ціни (La ropa y los precios);la mochila;рюкзак;
+49;Одяг та ціни (La ropa y los precios);la cremallera;блискавка (застібка);
+50;Одяг та ціни (La ropa y los precios);el bolsillo;кишеня;
+51;Одяг та ціни (La ropa y los precios);la tienda de ropa;магазин одягу;
+52;Одяг та ціни (La ropa y los precios);No pasa nada;Нічого страшного / Все гаразд;
+53;Одяг та ціни (La ropa y los precios);No te preocupes;Не хвилюйся;
+54;Одяг та ціни (La ropa y los precios);¡Menos mal!;Слава Богу! / Добре, що так!;
+55;Одяг та ціни (La ropa y los precios);¡Cuidado!;Обережно!;
+56;Одяг та ціни (La ropa y los precios);¡Venga!;Давай! / Нумо!;
+57;Одяг та ціни (La ropa y los precios);¿Cómo se dice en español...?;Як сказати іспанською...?;
+58;Одяг та ціни (La ropa y los precios);Yo necesito...;Мені потрібно...;
+59;Одяг та ціни (La ropa y los precios);Yo quiero...;I want...;
