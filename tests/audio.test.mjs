@@ -14,11 +14,11 @@ function check(name, fn) {
     console.log(`  PASS  ${name}`);
 }
 
-function makeEnv({ voices, speakThrows = false, silent = false } = {}) {
+function makeEnv({ voices, speakThrows = false, silent = false, paused = false } = {}) {
     const audioInstances = [];
     const alerts = [];
     const timers = [];
-    const synthCalls = { cancel: 0, speak: [], utterances: [] };
+    const synthCalls = { cancel: 0, resume: 0, speak: [], utterances: [] };
 
     class MockAudio {
         constructor(url) {
@@ -38,8 +38,11 @@ function makeEnv({ voices, speakThrows = false, silent = false } = {}) {
     const window = {
         addEventListener() {},
         speechSynthesis: {
+            paused,
+            onvoiceschanged: null,
             getVoices: () => voices || [],
             cancel: () => { synthCalls.cancel++; },
+            resume: () => { synthCalls.resume++; synthCalls.paused = false; window.speechSynthesis.paused = false; },
             speak: (u) => {
                 synthCalls.speak.push(u);
                 synthCalls.utterances.push(u);
@@ -78,14 +81,14 @@ function makeEnv({ voices, speakThrows = false, silent = false } = {}) {
 
 console.log('Audio pronunciation fallback tests');
 
-check('1. speechSynthesis missing -> online TTS audio, no alert', () => {
+check('1. speechSynthesis missing -> mirrored online TTS audio, no alert', () => {
     const e = makeEnv();
     delete e.window.speechSynthesis;
     delete e.window.SpeechSynthesisUtterance;
     e.app.speak('hola', 'es');
     assert.equal(e.alerts.length, 0);
     assert.equal(e.audioInstances.length, 1);
-    assert.match(e.audioInstances[0].src, /translate\.google\.com\/translate_tts/);
+    assert.match(e.audioInstances[0].src, /translate\.googleapis\.com\/translate_tts/);
     assert.match(e.audioInstances[0].src, /tl=es/);
     assert.match(e.audioInstances[0].src, /q=hola/);
     assert.equal(e.audioInstances[0].playCount, 1);
@@ -111,12 +114,17 @@ check('3. utterance.onerror -> graceful audio fallback', () => {
     assert.equal(e.alerts.length, 0);
 });
 
-check('4. voices empty -> immediate audio fallback', () => {
-    const e = makeEnv({ voices: [] });
+check('4. voices empty -> still attempt speech, no premature fallback', () => {
+    const e = makeEnv({ voices: [], silent: true });
     e.app.speak('adios', 'es');
-    assert.equal(e.synthCalls.speak.length, 0);
-    assert.equal(e.audioInstances.length, 1);
+    assert.equal(e.synthCalls.speak.length, 1, 'speak attempted without voices');
+    assert.equal(e.audioInstances.length, 0, 'no immediate network fallback');
     assert.equal(e.alerts.length, 0);
+    // Still give up eventually if the WebView never starts speaking.
+    const watchdog = e.timers.find(t => t.ms === 2500 && !t.cancelled);
+    assert.ok(watchdog, 'longer watchdog scheduled');
+    watchdog.fn();
+    assert.equal(e.audioInstances.length, 1);
 });
 
 check('5. synth.speak() throws -> immediate audio fallback', () => {
@@ -164,17 +172,17 @@ check('8. long text split into chunks, played sequentially', () => {
     assert.equal(e.audioInstances.length, chunks.length);
 });
 
-check('9. all audio chunks fail -> single alert, no duplicates', () => {
+check('9. all audio mirrors fail -> single alert, no duplicates', () => {
     const e = makeEnv();
     delete e.window.speechSynthesis;
     delete e.window.SpeechSynthesisUtterance;
     e.app.speak('fallo', 'es');
-    e.audioInstances[0].failPlay = true;
-    e.audioInstances[0].onerror();
+    e.audioInstances[e.audioInstances.length - 1].onerror(); // mirror 1
+    e.audioInstances[e.audioInstances.length - 1].onerror(); // mirror 2
+    e.audioInstances[e.audioInstances.length - 1].onerror(); // mirror 3
     assert.equal(e.alerts.length, 1);
     e.app.speak('otro fallo', 'es');
-    e.audioInstances[1].failPlay = true;
-    e.audioInstances[1].onerror();
+    for (let i = 0; i < 3; i++) e.audioInstances[e.audioInstances.length - 1].onerror();
     assert.equal(e.alerts.length, 1, 'warning shown only once');
 });
 
@@ -206,4 +214,70 @@ check('11. locale, rate and matching voice are applied', () => {
     assert.equal(v.voice.name, 'Ukr');
 });
 
-console.log(`\n${passed}/11 checks passed`);
+check('12. voiceschanged -> retry with a real voice instead of network fallback', () => {
+    const voices = [];
+    const e = makeEnv({ voices, silent: true });
+    e.app.speak('hola', 'es');
+    assert.equal(e.synthCalls.speak.length, 1);
+    voices.push({ lang: 'es-ES', name: 'Monica' });
+    e.window.speechSynthesis.onvoiceschanged();
+    assert.equal(e.synthCalls.speak.length, 2, 'utterance retried');
+    assert.equal(e.synthCalls.cancel, 2); // stopAudio() from speak() + retry cancel
+    assert.equal(e.synthCalls.utterances[1].voice.name, 'Monica');
+    assert.equal(e.audioInstances.length, 0);
+    assert.equal(e.alerts.length, 0);
+});
+
+check('13. failed audio mirror -> next mirror for the same chunk', () => {
+    const e = makeEnv();
+    delete e.window.speechSynthesis;
+    delete e.window.SpeechSynthesisUtterance;
+    e.app.speak('hola', 'es');
+    assert.equal(e.audioInstances.length, 1);
+    e.audioInstances[0].onerror();
+    assert.equal(e.audioInstances.length, 2);
+    const q0 = new URL(e.audioInstances[0].src).searchParams.get('q');
+    const q1 = new URL(e.audioInstances[1].src).searchParams.get('q');
+    assert.equal(q0, q1, 'same text retried on the next mirror');
+    assert.notEqual(new URL(e.audioInstances[0].src).host, new URL(e.audioInstances[1].src).host);
+    assert.equal(e.alerts.length, 0);
+});
+
+check('14. onend without onstart -> treated as silent failure, falls back', () => {
+    const e = makeEnv({ voices: [{ lang: 'es-ES' }], silent: true });
+    e.app.speak('nada', 'es');
+    assert.equal(e.audioInstances.length, 0);
+    e.synthCalls.utterances[0].onend();
+    assert.equal(e.audioInstances.length, 1);
+});
+
+check('15. canceled/interrupted errors are ignored', () => {
+    const e = makeEnv({ voices: [{ lang: 'es-ES' }], silent: true });
+    e.app.speak('espera', 'es');
+    e.synthCalls.utterances[0].onerror({ error: 'canceled' });
+    e.synthCalls.utterances[0].onerror({ error: 'interrupted' });
+    assert.equal(e.audioInstances.length, 0);
+});
+
+check('16. ttsUrls exposes ordered, correctly encoded public mirrors', () => {
+    const e = makeEnv();
+    const es = e.app.ttsUrls('hola y adiós', 'es');
+    assert.equal(es.length, 3);
+    assert.match(es[0], /^https:\/\/translate\.googleapis\.com\/translate_tts\?.*tl=es/);
+    assert.match(es[1], /^https:\/\/translate\.google\.com\/translate_tts\?.*tl=es/);
+    assert.match(es[2], /^https:\/\/dict\.youdao\.com\/dictvoice\?.*type=2/);
+    assert.ok(es.every(u => new URL(u).searchParams.get('audio') === 'hola y adiós'
+        || new URL(u).searchParams.get('q') === 'hola y adiós'));
+    const uk = e.app.ttsUrls('привіт', 'uk');
+    assert.equal(uk.length, 2);
+    assert.ok(uk.every(u => new URL(u).searchParams.get('tl') === 'uk'));
+});
+
+check('17. paused synth is resumed inside the user gesture', () => {
+    const e = makeEnv({ voices: [{ lang: 'es-ES' }], paused: true });
+    e.app.speak('vamos', 'es');
+    assert.equal(e.synthCalls.resume, 1);
+    assert.equal(e.window.speechSynthesis.paused, false);
+});
+
+console.log(`\n${passed}/17 checks passed`);

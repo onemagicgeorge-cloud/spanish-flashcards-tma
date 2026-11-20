@@ -382,87 +382,353 @@ class App {
             && typeof window.speechSynthesis.speak === 'function';
     }
 
+    // getVoices() is empty until the WebView finishes loading its voice list and
+    // fires "voiceschanged". Listening (and caching) avoids the old bug where an
+    // initially empty list was mistaken for an unsupported engine.
+    ensureVoiceListener() {
+        if (!this.canUseSpeechSynthesis() || this.voicesListenerAttached) return;
+        this.voicesListenerAttached = true;
+        const synth = window.speechSynthesis;
+
+        const refresh = () => {
+            this.cachedVoices = typeof synth.getVoices === 'function' ? (synth.getVoices() || []) : [];
+            if (!this.cachedVoices.length) return;
+
+            const active = this.activeSpeech;
+            if (!active || active.started || active.didFallback || active.hadVoices) return;
+            if (active.generation !== this.speakGeneration) return;
+
+            // Voices just became available for an utterance that was started
+            // without any. Retry once with a real voice instead of waiting for
+            // the watchdog and going to the network unnecessarily.
+            if (active.utterance) {
+                active.utterance.onstart = null;
+                active.utterance.onend = null;
+                active.utterance.onerror = null;
+            }
+            try { synth.cancel(); } catch (e) { /* ignore */ }
+            this.clearSpeechWatchdog();
+            active.hadVoices = true;
+            this.startSpeechSynthesis(active.text, active.lang, active.generation, true);
+        };
+
+        try {
+            if (typeof synth.addEventListener === 'function') {
+                synth.addEventListener('voiceschanged', refresh);
+            } else if ('onvoiceschanged' in synth) {
+                const previous = synth.onvoiceschanged;
+                synth.onvoiceschanged = (event) => {
+                    if (typeof previous === 'function') previous.call(synth, event);
+                    refresh();
+                };
+            }
+        } catch (e) { /* ignore */ }
+
+        // Some WebViews pause speech while the Mini App is in the background.
+        if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+            document.addEventListener('visibilitychange', () => {
+                if (typeof document.hidden !== 'undefined' && document.hidden) return;
+                if (!this.canUseSpeechSynthesis()) return;
+                try {
+                    if (window.speechSynthesis.paused && typeof window.speechSynthesis.resume === 'function') {
+                        window.speechSynthesis.resume();
+                    }
+                } catch (e) { /* ignore */ }
+            });
+        }
+    }
+
+    getVoices() {
+        if (this.cachedVoices && this.cachedVoices.length) return this.cachedVoices;
+        this.cachedVoices = this.canUseSpeechSynthesis() && typeof window.speechSynthesis.getVoices === 'function'
+            ? (window.speechSynthesis.getVoices() || [])
+            : [];
+        return this.cachedVoices;
+    }
+
+    clearSpeechWatchdog() {
+        if (this.speechWatchdog) {
+            clearTimeout(this.speechWatchdog);
+            this.speechWatchdog = null;
+        }
+    }
+
     speak(text, lang) {
         if (!text) return;
-        if (window.Telegram?.WebApp?.HapticFeedback?.impactOccurred) {
-            window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
-        }
 
+        // Stop anything already playing, then invalidate callbacks from it.
         this.stopAudio();
-        const tl = lang === 'uk' ? 'uk' : 'es';
+        const generation = this.speakGeneration;
 
-        // 1. Try Web Speech API (native browser TTS)
-        if ('speechSynthesis' in window && typeof window.SpeechSynthesisUtterance === 'function') {
+        // Telegram WebView on some Android/iOS devices exposes speechSynthesis but
+        // cannot actually synthesize. Use it when it works and gracefully fall back
+        // to streamed audio on any failure. speak() is called synchronously from the
+        // tap handler, which preserves the required user gesture; resume() explicitly
+        // because some engines pause the speech queue between cards.
+        if (this.canUseSpeechSynthesis()) {
             try {
+                this.ensureVoiceListener();
                 const synth = window.speechSynthesis;
-                synth.cancel();
-                const utterance = new window.SpeechSynthesisUtterance(text);
-                utterance.lang = lang === 'uk' ? 'uk-UA' : 'es-ES';
-                utterance.rate = lang === 'es' ? 0.9 : 1;
-                
-                let played = false;
-                utterance.onstart = () => { played = true; };
-                
-                synth.speak(utterance);
-                
-                // Check if synthesis started successfully after 300ms
-                setTimeout(() => {
-                    if (!played && synth.speaking) {
-                        played = true;
-                    }
-                }, 300);
-
+                if (synth.paused && typeof synth.resume === 'function') {
+                    try { synth.resume(); } catch (e) { /* ignore */ }
+                }
+                this.startSpeechSynthesis(text, lang, generation, false);
                 return;
             } catch (e) {
-                console.warn('SpeechSynthesis error:', e);
+                // Broken or stubbed speechSynthesis -> use the online TTS fallback.
             }
         }
 
-        // 2. Fallback to Google Translate TTS audio stream
+        this.playAudioUrl(text, lang);
+    }
+
+    startSpeechSynthesis(text, lang, generation, hadVoices) {
+        const synth = window.speechSynthesis;
+        const voices = this.getVoices();
+        const targetLang = lang === 'uk' ? 'uk-UA' : 'es-ES';
+        const utterance = new window.SpeechSynthesisUtterance(text);
+        utterance.lang = targetLang;
+        utterance.rate = lang === 'es' ? 0.9 : 1;
+
+        const voice = this.findVoice(targetLang, voices);
+        if (voice) {
+            utterance.voice = voice;
+            utterance.lang = voice.lang;
+        }
+
+        const state = {
+            generation,
+            text,
+            lang,
+            hadVoices: hadVoices || voices.length > 0,
+            started: false,
+            didFallback: false,
+            utterance
+        };
+        this.activeSpeech = state;
+
+        const fallback = () => {
+            if (state.didFallback || generation !== this.speakGeneration) return;
+            state.didFallback = true;
+            this.clearSpeechWatchdog();
+            if (this.activeSpeech === state) this.activeSpeech = null;
+            try { synth.cancel(); } catch (e) { /* ignore */ }
+            this.playAudioUrl(text, lang);
+        };
+
+        utterance.onstart = () => {
+            if (generation !== this.speakGeneration || state.didFallback) return;
+            state.started = true;
+            this.clearSpeechWatchdog();
+        };
+
+        utterance.onend = () => {
+            if (generation !== this.speakGeneration || state.didFallback) return;
+            this.clearSpeechWatchdog();
+            if (this.activeSpeech === state) this.activeSpeech = null;
+            // A few WebViews fire only "end" and never actually produce sound.
+            if (!state.started) fallback();
+        };
+
+        utterance.onerror = (event) => {
+            if (generation !== this.speakGeneration || state.didFallback) return;
+            const error = event && event.error;
+            // Our own cancel() (re-voice, re-speak, fallback) reports these.
+            if (error === 'canceled' || error === 'interrupted') return;
+            fallback();
+        };
+
+        synth.speak(utterance);
+
+        // Handle engines that fire events synchronously during speak().
+        if (state.started || state.didFallback || generation !== this.speakGeneration) return;
+        this.clearSpeechWatchdog();
+
+        // Give a voice-less WebView extra time to load voices before giving up.
+        const delay = state.hadVoices ? 1500 : 2500;
+        this.speechWatchdog = setTimeout(() => {
+            if (!state.started && !state.didFallback && generation === this.speakGeneration) {
+                fallback();
+            }
+        }, delay);
+    }
+
+    findVoice(locale, voices) {
+        const list = voices || this.getVoices() || [];
+        const normalized = String(locale || '').toLowerCase().replace('_', '-');
+        const prefix = normalized.split('-')[0];
+        const langOf = (v) => String((v && v.lang) || '').toLowerCase().replace('_', '-');
+        return list.find(v => langOf(v) === normalized)
+            || list.find(v => langOf(v).startsWith(prefix))
+            || null;
+    }
+
+    stopAudio() {
+        this.speakGeneration++;
+        this.clearSpeechWatchdog();
+        this.activeSpeech = null;
+        if (this.currentAudio) {
+            const audio = this.currentAudio;
+            this.currentAudio = null;
+            try {
+                audio.pause();
+                audio.currentTime = 0;
+            } catch (e) { /* ignore */ }
+        }
+        if (this.canUseSpeechSynthesis()) {
+            try { window.speechSynthesis.cancel(); } catch (e) { /* ignore */ }
+        }
+    }
+
+    // No API key needed. Several public mirrors are tried in order because the
+    // Google Translate host is blocked/CORS-restricted in some Telegram WebViews.
+    // A failed mirror is retried with the next one before moving to the next
+    // chunk. Long texts are split to respect the ~200 char TTS limit.
+    ttsUrls(text, lang) {
+        const tl = lang === 'uk' ? 'uk' : 'es';
+        const encoded = encodeURIComponent(text);
+        const urls = [
+            `https://translate.googleapis.com/translate_tts?ie=UTF-8&client=gtx&tl=${tl}&q=${encoded}`,
+            `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${tl}&q=${encoded}`
+        ];
+        // Latin-script-only mirror, useful for Spanish when Google is unreachable.
+        if (lang === 'es') {
+            urls.push(`https://dict.youdao.com/dictvoice?audio=${encoded}&type=2`);
+        }
+        return urls;
+    }
+
+    playAudioUrl(text, lang) {
+        if (!text) return;
+        this.stopAudio();
+        const generation = this.speakGeneration;
+        const chunks = this.chunkText(text, 180);
+        let index = 0;
+        let failures = 0;
+
+        const finish = () => {
+            if (generation !== this.speakGeneration) return;
+            this.currentAudio = null;
+            if (failures === chunks.length) this.notifyAudioUnavailable();
+        };
+
+        const playChunk = (chunk, whenDone) => {
+            const urls = this.ttsUrls(chunk, lang);
+            let providerIndex = 0;
+
+            const tryProvider = () => {
+                if (generation !== this.speakGeneration) return;
+                if (providerIndex >= urls.length) {
+                    failures++;
+                    whenDone();
+                    return;
+                }
+
+                const url = urls[providerIndex++];
+                let audio = null;
+                let settled = false;
+                let loadTimer = null;
+
+                const clearLoadTimer = () => {
+                    if (loadTimer) {
+                        clearTimeout(loadTimer);
+                        loadTimer = null;
+                    }
+                };
+
+                const fail = () => {
+                    if (settled || generation !== this.speakGeneration) return;
+                    settled = true;
+                    clearLoadTimer();
+                    if (this.currentAudio === audio) this.currentAudio = null;
+                    tryProvider(); // next mirror for the same chunk
+                };
+
+                const succeeded = () => {
+                    if (settled || generation !== this.speakGeneration) return;
+                    settled = true;
+                    clearLoadTimer();
+                    if (this.currentAudio === audio) this.currentAudio = null;
+                    whenDone();
+                };
+
+                try {
+                    audio = new Audio(url);
+                } catch (e) {
+                    fail();
+                    return;
+                }
+
+                this.currentAudio = audio;
+                audio.onended = succeeded;
+                audio.onerror = fail;
+
+                // Some WebViews neither resolve play() nor fire an error event.
+                loadTimer = setTimeout(() => {
+                    if (!settled && generation === this.speakGeneration) {
+                        try { audio.pause(); } catch (e) { /* ignore */ }
+                        fail();
+                    }
+                }, 8000);
+
+                try {
+                    const promise = audio.play();
+                    if (promise && typeof promise.catch === 'function') promise.catch(fail);
+                } catch (e) {
+                    fail();
+                }
+            };
+
+            tryProvider();
+        };
+
+        const playNext = () => {
+            if (generation !== this.speakGeneration) return;
+            if (index >= chunks.length) {
+                finish();
+                return;
+            }
+            playChunk(chunks[index++], playNext);
+        };
+
         try {
-            const url = 'https://translate.google.com/translate_tts?ie=UTF-8&client=gtx&tl=' + tl + '&q=' + encodeURIComponent(text);
-            const audio = new Audio(url);
-            this.currentAudio = audio;
-            audio.play().catch(err => {
-                console.warn('Audio play error:', err);
-                this.notifyAudioUnavailable();
-            });
+            playNext();
         } catch (e) {
             this.notifyAudioUnavailable();
         }
     }
 
-    stopAudio() {
-        if (this.currentAudio) {
-            try {
-                this.currentAudio.pause();
-                this.currentAudio.currentTime = 0;
-            } catch (e) {}
-            this.currentAudio = null;
+    chunkText(text, maxLength) {
+        const value = String(text).trim();
+        const chunks = [];
+        let rest = value;
+        while (rest.length > maxLength) {
+            let cut = rest.lastIndexOf(' ', maxLength);
+            if (cut <= 0) cut = maxLength;
+            chunks.push(rest.slice(0, cut).trim());
+            rest = rest.slice(cut).trim();
         }
-        if ('speechSynthesis' in window) {
-            try { window.speechSynthesis.cancel(); } catch (e) {}
+        if (rest) chunks.push(rest);
+        return chunks.length ? chunks : [value];
+    }
+
+    notifyAudioUnavailable() {
+        if (this.audioWarningShown) return;
+        this.audioWarningShown = true;
+        const message = 'Не вдалося відтворити озвучення. Перевірте підключення до Інтернету.';
+        if (window.Telegram?.WebApp?.showAlert) {
+            window.Telegram.WebApp.showAlert(message);
+        } else {
+            alert(message);
         }
-    }
-
-    canUseSpeechSynthesis() {
-        return 'speechSynthesis' in window;
-    }
-
-    playAudioUrl(text, lang) {
-        this.speak(text, lang);
-    }
-
-    chunkText(text) {
-        return [text];
     }
 
         formatInterval(days) {
-        if (days < 1) return '<1д';
-        if (days === 1) return '1д';
-        if (days < 30) return days + 'д';
-        return Math.round(days / 30) + ' міс';
-    }
+            if (days < 1) return '<1д';
+            if (days === 1) return '1д';
+            if (days < 30) return days + 'д';
+            return Math.round(days / 30) + ' міс';
+        }
 
     flipCard() {
         this.isFlipped = !this.isFlipped;
