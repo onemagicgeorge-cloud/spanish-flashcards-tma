@@ -1,8 +1,14 @@
 import { loadDefaultCards, parseCSV, loadUserData, saveUserData, loadSettings, saveSettings } from './storage.js';
 
+// Bump whenever the default deck is replaced: old custom cards and SRS state
+// must not survive a deck change (ids are reused by the new deck).
+const DECK_VERSION = 'laropa-59-20261120';
+const DECK_VERSION_KEY = '_deckVersion';
+
 class App {
     constructor() {
         this.cards = [];
+        this.defaultCardKeys = new Set();
         this.progress = {}; // cardId -> { status, interval, easeFactor, reps, dueDate }
         this.settings = loadSettings();
         this.currentQueue = [];
@@ -37,18 +43,26 @@ class App {
         
         // Load user progress
         const savedProgress = await loadUserData();
+        const savedDeckVersion = savedProgress[DECK_VERSION_KEY];
+        delete savedProgress[DECK_VERSION_KEY];
+        const deckChanged = savedDeckVersion !== DECK_VERSION;
+        if (deckChanged) {
+            // Old decks and their progress are no longer valid for this deck.
+            for (const key of Object.keys(savedProgress)) delete savedProgress[key];
+        }
 
         // Merge cards (default + custom imported saved in progress or extra storage)
-        const customCards = savedProgress._customCards || [];
+        const customCards = deckChanged ? [] : (savedProgress._customCards || []);
         this.cards = [...defaultCards, ...customCards];
-        
+        this.defaultCardKeys = new Set(defaultCards.map(card => `${card.id}\u0000${card.es}\u0000${card.uk}`));
+
         // Remove meta keys from progress map if any
         delete savedProgress._customCards;
         this.progress = savedProgress;
 
         // Initialize progress for new cards
         const now = Date.now();
-        let updated = false;
+        let updated = deckChanged;
         this.cards.forEach(card => {
             if (!this.progress[card.id]) {
                 this.progress[card.id] = {
@@ -72,8 +86,12 @@ class App {
 
     async save() {
         const payload = { ...this.progress };
-        // Save custom cards as well
-        payload._customCards = this.cards.filter(c => !c.id.startsWith('card_') || c.id.length > 20); // simplified check or store all custom
+        // Persist the deck version so a future replacement can reset stale data.
+        payload[DECK_VERSION_KEY] = DECK_VERSION;
+        // Store only genuinely imported cards; default cards always come from the CSV.
+        payload._customCards = this.cards.filter(
+            card => !this.defaultCardKeys.has(`${card.id}\u0000${card.es}\u0000${card.uk}`)
+        );
         await saveUserData(payload);
     }
 

@@ -46,4 +46,10 @@ check('no duplicate ES/UK pairs', () => {
     assert.equal(new Set(pairs).size, pairs.length);
 });
 
+check('app.js deck version is bumped for this deck', () => {
+    const appSource = fs.readFileSync(new URL('../app.js', import.meta.url), 'utf8');
+    assert.match(appSource, /const DECK_VERSION = 'laropa-59-20261120';/);
+    assert.match(appSource, /DECK_VERSION_KEY/);
+});
+
 console.log(`\n${passed}/${passed} checks passed`);
