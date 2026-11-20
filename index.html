@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Español Flashcards - Telegram Mini App</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-title">🇪🇸 Español Anki</div>
+            <div class="header-actions">
+                <button id="btn-import" title="Імпорт CSV">📥</button>
+                <button id="btn-settings" title="Налаштування / Архів">⚙️</button>
+            </div>
+        </header>
+
+        <!-- Main Dashboard View -->
+        <main id="view-dashboard" class="view active">
+            <div class="stats-card">
+                <h2>Загальний прогрес</h2>
+                <div class="progress-bar-container">
+                    <div id="overall-progress-bar" class="progress-fill" style="width: 0%;"></div>
+                </div>
+                <div class="stats-grid">
+                    <div><span id="stat-learned">0</span> вивчено</div>
+                    <div><span id="stat-due">0</span> до повторення</div>
+                    <div><span id="stat-total">0</span> всього</div>
+                </div>
+            </div>
+
+            <div class="actions-group">
+                <button id="btn-start-due" class="btn primary">Повторити на сьогодні (<span id="count-due-btn">0</span>)</button>
+                <button id="btn-start-all" class="btn secondary">Усі картки підряд</button>
+            </div>
+
+            <div class="topics-section">
+                <h3>Теми</h3>
+                <div id="topics-list" class="topics-list">
+                    <!-- Dynamic topics -->
+                </div>
+            </div>
+        </main>
+
+        <!-- Study View -->
+        <main id="view-study" class="view">
+            <div class="study-header">
+                <button id="btn-back-dashboard" class="btn-icon">← Назад</button>
+                <div id="study-progress-indicator">Картка 1 / 10</div>
+            </div>
+
+            <div class="flashcard-container" id="flashcard">
+                <div class="flashcard-inner" id="flashcard-inner">
+                    <div class="flashcard-front">
+                        <div class="card-topic" id="study-topic">Тема</div>
+                        <div class="card-content" id="study-question">Питання</div>
+                        <div class="card-hint">Натисніть, щоб перевернути</div>
+                    </div>
+                    <div class="flashcard-back">
+                        <div class="card-topic" id="study-topic-back">Тема</div>
+                        <div class="card-content" id="study-answer">Відповідь</div>
+                        <div class="card-example" id="study-example">Приклад: ...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="study-actions-front" id="actions-front">
+                <button id="btn-show-answer" class="btn primary">Показати відповідь</button>
+            </div>
+
+            <div class="study-actions-back hidden" id="actions-back">
+                <div class="rating-buttons">
+                    <button class="btn-rate" data-rating="again">Знову<span class="interval-hint">&lt;1хв</span></button>
+                    <button class="btn-rate" data-rating="hard">Важко<span class="interval-hint" id="hint-hard">1д</span></button>
+                    <button class="btn-rate" data-rating="good">Добре<span class="interval-hint" id="hint-good">3д</span></button>
+                    <button class="btn-rate" data-rating="easy">Легко<span class="interval-hint" id="hint-easy">4д</span></button>
+                </div>
+                <div class="extra-actions">
+                    <button id="btn-ignore-card" class="btn-text danger">Не повторювати цю картку</button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Import Modal -->
+        <div id="modal-import" class="modal hidden">
+            <div class="modal-content">
+                <h2>Швидкий імпорт CSV</h2>
+                <p>Завантажте файл `.csv` або вставте текст у форматі `id;topic;es;uk;example`</p>
+                <input type="file" id="csv-file-input" accept=".csv">
+                <textarea id="csv-text-input" placeholder="Вставте CSV текст тут..."></textarea>
+                <div class="modal-buttons">
+                    <button id="btn-cancel-import" class="btn secondary">Скасувати</button>
+                    <button id="btn-confirm-import" class="btn primary">Імпортувати</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings / Ignored Modal -->
+        <div id="modal-settings" class="modal hidden">
+            <div class="modal-content">
+                <h2>Налаштування</h2>
+                <div class="setting-item">
+                    <label>Напрямок тренування:</label>
+                    <select id="select-direction">
+                        <option value="es-uk">Іспанська → Українська</option>
+                        <option value="uk-es">Українська → Іспанська</option>
+                    </select>
+                </div>
+                <h3>Приховані картки (<span id="ignored-count">0</span>)</h3>
+                <div id="ignored-list" class="ignored-list">
+                    <!-- Ignored cards list -->
+                </div>
+                <div class="modal-buttons">
+                    <button id="btn-close-settings" class="btn primary">Закрити</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
