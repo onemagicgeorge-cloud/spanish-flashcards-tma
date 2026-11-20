@@ -205,6 +205,29 @@ body {
     font-weight: 600;
 }
 
+.study-header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--hint-color);
+}
+
+.btn-toggle {
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.btn-toggle[aria-pressed="true"] {
+    background: var(--button-color);
+    border-color: var(--button-color);
+    color: var(--button-text-color);
+}
+
 .flashcard-container {
     perspective: 1000px;
     flex: 1;
@@ -247,6 +270,13 @@ body {
     background: var(--secondary-bg-color);
 }
 
+.card-topline {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+}
+
 .card-topic {
     font-size: 13px;
     color: var(--hint-color);
@@ -254,11 +284,60 @@ body {
     letter-spacing: 0.5px;
 }
 
+.direction-badge {
+    flex-shrink: 0;
+    padding: 3px 7px;
+    border-radius: 6px;
+    background: var(--bg-color);
+    color: var(--hint-color);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.card-word-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin: auto 0;
+}
+
 .card-content {
     font-size: 24px;
     font-weight: 700;
-    margin: auto 0;
     word-break: break-word;
+}
+
+.btn-speak {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    background: var(--bg-color);
+    color: var(--text-color);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    transition: opacity 0.2s, transform 0.1s;
+}
+
+.btn-speak:active {
+    opacity: 0.7;
+    transform: scale(0.94);
+}
+
+.speak-lang {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--hint-color);
+    letter-spacing: 0.5px;
 }
 
 .card-example {
@@ -377,6 +456,12 @@ body {
     border: 1px solid var(--border-color);
     background: var(--bg-color);
     color: var(--text-color);
+}
+
+.setting-help {
+    font-size: 12px;
+    color: var(--hint-color);
+    line-height: 1.4;
 }
 
 .ignored-list {

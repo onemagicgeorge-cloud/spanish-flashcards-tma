@@ -49,19 +49,34 @@
         <main id="view-study" class="view">
             <div class="study-header">
                 <button id="btn-back-dashboard" class="btn-icon">← Назад</button>
-                <div id="study-progress-indicator">Картка 1 / 10</div>
+                <div class="study-header-right">
+                    <button id="btn-shuffle" class="btn-icon btn-toggle" type="button" aria-pressed="false" title="Перемішати картки">🔀 Перемішати</button>
+                    <div id="study-progress-indicator">Картка 1 / 10</div>
+                </div>
             </div>
 
             <div class="flashcard-container" id="flashcard">
                 <div class="flashcard-inner" id="flashcard-inner">
                     <div class="flashcard-front">
-                        <div class="card-topic" id="study-topic">Тема</div>
-                        <div class="card-content" id="study-question">Питання</div>
+                        <div class="card-topline">
+                            <div class="card-topic" id="study-topic">Тема</div>
+                            <span class="direction-badge" id="study-direction-front">ES → UK</span>
+                        </div>
+                        <div class="card-word-row">
+                            <div class="card-content" id="study-question">Питання</div>
+                            <button type="button" class="btn-speak" id="speak-question" data-side="question" data-lang="es" title="Вимовити іспанською" aria-label="Вимовити іспанською">🔊<span class="speak-lang">ES</span></button>
+                        </div>
                         <div class="card-hint">Натисніть, щоб перевернути</div>
                     </div>
                     <div class="flashcard-back">
-                        <div class="card-topic" id="study-topic-back">Тема</div>
-                        <div class="card-content" id="study-answer">Відповідь</div>
+                        <div class="card-topline">
+                            <div class="card-topic" id="study-topic-back">Тема</div>
+                            <span class="direction-badge" id="study-direction-back">ES → UK</span>
+                        </div>
+                        <div class="card-word-row">
+                            <div class="card-content" id="study-answer">Відповідь</div>
+                            <button type="button" class="btn-speak" id="speak-answer" data-side="answer" data-lang="uk" title="Вимовити українською" aria-label="Вимовити українською">🔊<span class="speak-lang">UK</span></button>
+                        </div>
                         <div class="card-example" id="study-example">Приклад: ...</div>
                     </div>
                 </div>
@@ -103,12 +118,23 @@
             <div class="modal-content">
                 <h2>Налаштування</h2>
                 <div class="setting-item">
-                    <label>Напрямок тренування:</label>
+                    <label for="select-direction">Напрямок тренування:</label>
                     <select id="select-direction">
                         <option value="es-uk">Іспанська → Українська</option>
                         <option value="uk-es">Українська → Іспанська</option>
+                        <option value="random">Випадково</option>
                     </select>
                 </div>
+                <div class="setting-item">
+                    <label for="select-voice">Озвучення (🔊):</label>
+                    <select id="select-voice">
+                        <option value="es">Іспанська</option>
+                        <option value="uk">Українська</option>
+                        <option value="both">Обидві</option>
+                        <option value="off">Вимкнено</option>
+                    </select>
+                </div>
+                <p class="setting-help">Озвучення використовує голоси, встановлені на вашому пристрої (SpeechSynthesis).</p>
                 <h3>Приховані картки (<span id="ignored-count">0</span>)</h3>
                 <div id="ignored-list" class="ignored-list">
                     <!-- Ignored cards list -->

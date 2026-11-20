@@ -2,6 +2,25 @@
 const STORAGE_KEY = 'es_flashcards_progress_v1';
 const SETTINGS_KEY = 'es_flashcards_settings_v1';
 
+export const DEFAULT_SETTINGS = Object.freeze({
+    direction: 'es-uk', // 'es-uk' | 'uk-es' | 'random'
+    audioVoice: 'both', // 'es' | 'uk' | 'both' | 'off'
+    shuffle: false
+});
+
+const VALID_DIRECTIONS = ['es-uk', 'uk-es', 'random'];
+const VALID_AUDIO_VOICES = ['es', 'uk', 'both', 'off'];
+
+// Keeps settings saved by older app versions valid after new options are added.
+export function normalizeSettings(saved) {
+    const source = saved && typeof saved === 'object' ? saved : {};
+    return {
+        direction: VALID_DIRECTIONS.includes(source.direction) ? source.direction : DEFAULT_SETTINGS.direction,
+        audioVoice: VALID_AUDIO_VOICES.includes(source.audioVoice) ? source.audioVoice : DEFAULT_SETTINGS.audioVoice,
+        shuffle: source.shuffle === true
+    };
+}
+
 export async function loadDefaultCards() {
     try {
         const response = await fetch('data/cards.csv');
@@ -131,13 +150,15 @@ export async function saveUserData(progressMap) {
 export function loadSettings() {
     try {
         const saved = localStorage.getItem(SETTINGS_KEY);
-        if (saved) return JSON.parse(saved);
+        if (saved) return normalizeSettings(JSON.parse(saved));
     } catch (e) {}
-    return { direction: 'es-uk' };
+    return normalizeSettings();
 }
 
 export function saveSettings(settings) {
+    const normalized = normalizeSettings(settings);
     try {
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(normalized));
     } catch (e) {}
+    return normalized;
 }

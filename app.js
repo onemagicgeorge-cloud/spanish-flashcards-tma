@@ -10,6 +10,9 @@ class App {
         this.isFlipped = false;
         this.activeTopic = null;
         this.studyMode = 'due'; // 'due' or 'all'
+        this.shuffleEnabled = this.settings.shuffle;
+        this.cardDirections = new Map(); // cardId -> 'es-uk' | 'uk-es' (random mode)
+        this.audioWarningShown = false;
     }
 
     async init() {
@@ -74,6 +77,18 @@ class App {
         const flashcard = document.getElementById('flashcard');
         flashcard.addEventListener('click', () => this.flipCard());
 
+        document.getElementById('btn-shuffle').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.toggleShuffle();
+        });
+
+        document.querySelectorAll('.btn-speak').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation(); // do not flip the card when using the speaker
+                this.speakCardSide(btn.dataset.side);
+            });
+        });
+
         document.getElementById('btn-show-answer').addEventListener('click', (e) => {
             e.stopPropagation();
             this.flipCard();
@@ -110,12 +125,20 @@ class App {
             document.getElementById('modal-settings').classList.add('hidden');
         });
 
-        // Settings direction
+        // Settings: study direction and pronunciation voice
         const dirSelect = document.getElementById('select-direction');
         dirSelect.value = this.settings.direction;
         dirSelect.addEventListener('change', (e) => {
-            this.settings.direction = e.target.value;
-            saveSettings(this.settings);
+            this.settings = saveSettings({ ...this.settings, direction: e.target.value });
+            this.cardDirections.clear();
+            this.refreshCardIfStudying();
+        });
+
+        const voiceSelect = document.getElementById('select-voice');
+        voiceSelect.value = this.settings.audioVoice;
+        voiceSelect.addEventListener('change', (e) => {
+            this.settings = saveSettings({ ...this.settings, audioVoice: e.target.value });
+            this.updateSpeakButtons();
         });
 
         // CSV File reader
@@ -197,6 +220,7 @@ class App {
     startStudy(mode, topic) {
         this.studyMode = mode;
         this.activeTopic = topic;
+        this.cardDirections.clear();
         const now = Date.now();
 
         this.currentQueue = this.cards.filter(card => {
@@ -210,8 +234,10 @@ class App {
             return true; // 'all'
         });
 
-        // Shuffle queue for better learning experience
-        this.currentQueue.sort(() => Math.random() - 0.5);
+        // Cards stay in their original order unless the shuffle toggle is on
+        if (this.shuffleEnabled) {
+            this.shuffleArray(this.currentQueue);
+        }
 
         if (this.currentQueue.length === 0) {
             alert(mode === 'due' ? 'На сьогодні немає карток для повторення у цій темі!' : 'У цій темі немає карток.');
@@ -220,6 +246,7 @@ class App {
 
         this.currentIndex = 0;
         this.showView('view-study');
+        this.renderShuffleButton();
         this.loadCurrentCard();
     }
 
@@ -236,14 +263,21 @@ class App {
         document.getElementById('actions-back').classList.add('hidden');
 
         const card = this.currentQueue[this.currentIndex];
-        const isUkEs = this.settings.direction === 'uk-es';
+        const direction = this.getCardDirection(card);
+        const isUkEs = direction === 'uk-es';
+        const directionLabel = isUkEs ? 'UA → ES' : 'ES → UK';
 
         document.getElementById('study-topic').textContent = card.topic;
         document.getElementById('study-topic-back').textContent = card.topic;
+        document.getElementById('study-direction-front').textContent = directionLabel;
+        document.getElementById('study-direction-back').textContent = directionLabel;
 
         document.getElementById('study-question').textContent = isUkEs ? card.uk : card.es;
         document.getElementById('study-answer').textContent = isUkEs ? card.es : card.uk;
         document.getElementById('study-example').textContent = card.example ? `Приклад: ${card.example}` : '';
+        document.getElementById('speak-question').dataset.lang = isUkEs ? 'uk' : 'es';
+        document.getElementById('speak-answer').dataset.lang = isUkEs ? 'es' : 'uk';
+        this.updateSpeakButtons();
 
         document.getElementById('study-progress-indicator').textContent = `Картка ${this.currentIndex + 1} / ${this.currentQueue.length}`;
 
@@ -252,6 +286,121 @@ class App {
         document.getElementById('hint-hard').textContent = this.formatInterval(1);
         document.getElementById('hint-good').textContent = this.formatInterval(Math.max(1, Math.round((p.interval || 1) * p.easeFactor)));
         document.getElementById('hint-easy').textContent = this.formatInterval(Math.max(2, Math.round((p.interval || 1) * p.easeFactor * 1.3)));
+    }
+
+    // --- Shuffle & direction helpers ---
+
+    shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    }
+
+    toggleShuffle() {
+        this.shuffleEnabled = !this.shuffleEnabled;
+        this.settings = saveSettings({ ...this.settings, shuffle: this.shuffleEnabled });
+        this.renderShuffleButton();
+
+        // Shuffle only cards that have not been studied yet in this session.
+        const upcomingStart = this.currentIndex + 1;
+        if (this.shuffleEnabled && upcomingStart < this.currentQueue.length - 1) {
+            const upcoming = this.shuffleArray(this.currentQueue.slice(upcomingStart));
+            this.currentQueue = [
+                ...this.currentQueue.slice(0, upcomingStart),
+                ...upcoming
+            ];
+        }
+    }
+
+    renderShuffleButton() {
+        const btn = document.getElementById('btn-shuffle');
+        btn.setAttribute('aria-pressed', String(this.shuffleEnabled));
+        btn.title = this.shuffleEnabled ? 'Перемішування увімкнено' : 'Перемішати картки';
+    }
+
+    getCardDirection(card) {
+        if (this.settings.direction !== 'random') {
+            return this.settings.direction;
+        }
+        // Keep the same direction for a card even if it returns via "Знову".
+        if (!this.cardDirections.has(card.id)) {
+            this.cardDirections.set(card.id, Math.random() < 0.5 ? 'es-uk' : 'uk-es');
+        }
+        return this.cardDirections.get(card.id);
+    }
+
+    refreshCardIfStudying() {
+        const studyView = document.getElementById('view-study');
+        if (studyView.classList.contains('active') && this.currentQueue.length > 0) {
+            this.loadCurrentCard();
+        }
+    }
+
+    // --- SpeechSynthesis helpers ---
+
+    updateSpeakButtons() {
+        const voice = this.settings.audioVoice;
+        document.querySelectorAll('.btn-speak').forEach(btn => {
+            const lang = btn.dataset.lang || 'es';
+            const enabled = voice !== 'off' && (voice === 'both' || voice === lang);
+            btn.classList.toggle('hidden', !enabled);
+            const langName = lang === 'es' ? 'іспанською' : 'українською';
+            btn.title = `Вимовити ${langName}`;
+            btn.setAttribute('aria-label', btn.title);
+            btn.querySelector('.speak-lang').textContent = lang === 'es' ? 'ES' : 'UK';
+        });
+    }
+
+    speakCardSide(side) {
+        const btn = document.getElementById(side === 'question' ? 'speak-question' : 'speak-answer');
+        const textEl = document.getElementById(side === 'question' ? 'study-question' : 'study-answer');
+        if (!btn || !textEl || btn.classList.contains('hidden')) return;
+
+        if (window.Telegram?.WebApp?.HapticFeedback?.impactOccurred) {
+            window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
+        }
+        this.speak(textEl.textContent.trim(), btn.dataset.lang);
+    }
+
+    speak(text, lang) {
+        if (!text || !('speechSynthesis' in window) || typeof window.SpeechSynthesisUtterance !== 'function') {
+            this.notifyAudioUnavailable();
+            return;
+        }
+
+        const synth = window.speechSynthesis;
+        synth.cancel(); // avoid overlapping pronunciations
+        const utterance = new window.SpeechSynthesisUtterance(text);
+        utterance.lang = lang === 'uk' ? 'uk-UA' : 'es-ES';
+        utterance.rate = lang === 'es' ? 0.9 : 1;
+        const voice = this.findVoice(utterance.lang);
+        if (voice) {
+            utterance.voice = voice;
+            utterance.lang = voice.lang;
+        }
+        synth.speak(utterance);
+    }
+
+    findVoice(locale) {
+        const voices = window.speechSynthesis.getVoices();
+        const normalized = locale.toLowerCase();
+        const prefix = normalized.split('-')[0];
+        return voices.find(v => v.lang.toLowerCase().replace('_', '-') === normalized)
+            || voices.find(v => v.lang.toLowerCase().replace('_', '-').startsWith(prefix))
+            || null;
+    }
+
+    notifyAudioUnavailable() {
+        if (this.audioWarningShown) return;
+        this.audioWarningShown = true;
+        const message = 'Озвучення недоступне у цьому браузері.';
+        if (window.Telegram?.WebApp?.showAlert) {
+            window.Telegram.WebApp.showAlert(message);
+        } else {
+            alert(message);
+        }
     }
 
     formatInterval(days) {
@@ -379,6 +528,9 @@ class App {
     }
 
     renderSettingsModal() {
+        document.getElementById('select-direction').value = this.settings.direction;
+        document.getElementById('select-voice').value = this.settings.audioVoice;
+
         const listEl = document.getElementById('ignored-list');
         listEl.innerHTML = '';
 
