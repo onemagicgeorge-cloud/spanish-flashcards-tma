@@ -1,0 +1,6 @@
+# Credentials and local state — never deploy these with the static site
+.secrets/
+secrets_store.json
+data/deckload_pending.json
+*.pid
+*.log
