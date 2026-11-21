@@ -12,6 +12,15 @@ Usage:
     python3 scripts/deckload.py validate
     python3 scripts/deckload.py add --json FILE [--dry-run]
     python3 scripts/deckload.py add --csv FILE [--dry-run]
+    python3 scripts/deckload.py add --es ES --uk UK [--topic T] [--example E] [--dry-run]
+    python3 scripts/deckload.py list [--topic T] [--limit N]
+    python3 scripts/deckload.py search --query TEXT [--limit N]
+    python3 scripts/deckload.py remove --ids 1,2 [--dry-run]
+    python3 scripts/deckload.py remove --es TEXT [--dry-run]
+    python3 scripts/deckload.py update --id N [--es ES] [--uk UK] [--topic T] [--example E] [--dry-run]
+
+The list/search commands are read-only. remove/update always make a backup and
+require --dry-run preview before a real change in natural-language flows.
 """
 
 from __future__ import annotations
@@ -178,6 +187,115 @@ def append_cards(new_cards: list[dict], backup: bool = True) -> None:
     os.replace(tmp, CARDS)
 
 
+def write_cards(cards: list[dict], backup: bool = True) -> None:
+    """Rewrite the deck from a card list (for remove/update). Always backed up."""
+    buffer = io.StringIO()
+    writer = csv.writer(buffer, delimiter=";", quoting=csv.QUOTE_MINIMAL, lineterminator="\n")
+    writer.writerow(HEADER)
+    for card in cards:
+        writer.writerow([clean(card.get(field, "")) for field in HEADER])
+    if backup:
+        BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        shutil.copy2(CARDS, BACKUP_DIR / f"cards_{stamp}_rewrite.csv")
+    tmp = CARDS.with_suffix(".csv.tmp")
+    tmp.write_text(buffer.getvalue(), encoding="utf-8")
+    os.replace(tmp, CARDS)
+
+
+def as_json_cards(cards: list[dict]) -> list[dict]:
+    return [{field: card.get(field, "") for field in HEADER} for card in cards]
+
+
+def match_topic(card: dict, topic: str) -> bool:
+    return not topic or topic.casefold() in card.get("topic", "").casefold()
+
+
+def cmd_list(args) -> None:
+    cards = [card for card in read_cards() if match_topic(card, args.topic)]
+    total = len(cards)
+    if args.limit > 0:
+        cards = cards[: args.limit]
+    print(json.dumps({"total_matching": total, "shown": len(cards), "cards": as_json_cards(cards)}, ensure_ascii=False, indent=2))
+
+
+def cmd_search(args) -> None:
+    query = args.query.strip().casefold()
+    if not query:
+        print(json.dumps({"error": "empty query"}, ensure_ascii=False))
+        return 2
+    cards = read_cards()
+    found = [
+        card for card in cards
+        if any(query in card.get(field, "").casefold() for field in ("es", "uk", "topic", "example"))
+    ]
+    total = len(found)
+    if args.limit > 0:
+        found = found[: args.limit]
+    print(json.dumps({"query": args.query, "total_matching": total, "shown": len(found), "cards": as_json_cards(found)}, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_remove(args) -> None:
+    cards = read_cards()
+    ids = {part.strip() for part in (args.ids or "").split(",") if part.strip()}
+    if not ids and not args.es:
+        print(json.dumps({"error": "provide --ids or --es"}, ensure_ascii=False))
+        return 2
+    targets = []
+    if ids:
+        targets = [card for card in cards if card["id"] in ids]
+    elif args.es:
+        targets = [card for card in cards if card["es"].casefold() == args.es.strip().casefold()]
+    if not targets:
+        print(json.dumps({"removed": 0, "error": "no matching card", "ids": sorted(ids), "es": args.es}, ensure_ascii=False))
+        return 1
+    removed_ids = [card["id"] for card in targets]
+    remaining = [card for card in cards if card not in targets]
+    if not args.dry_run:
+        write_cards(remaining, backup=not args.no_backup)
+    print(json.dumps({
+        "dry_run": args.dry_run,
+        "removed": len(targets),
+        "ids": removed_ids,
+        "cards": as_json_cards(targets),
+        "total_after": len(remaining),
+    }, ensure_ascii=False, indent=2))
+
+
+def cmd_update(args) -> None:
+    cards = read_cards()
+    target = next((card for card in cards if card["id"] == str(args.id).strip()), None)
+    if target is None:
+        print(json.dumps({"error": "card not found", "id": args.id}, ensure_ascii=False))
+        return 1
+    changes = {field: getattr(args, field) for field in ("es", "uk", "topic", "example") if getattr(args, field) is not None}
+    if not changes:
+        print(json.dumps({"error": "no fields to update"}, ensure_ascii=False))
+        return 2
+    updated = dict(target)
+    updated.update({field: clean(value) for field, value in changes.items()})
+    problems = []
+    if not updated.get("es") or not updated.get("uk") or not updated.get("topic"):
+        problems.append("es/uk/topic must stay non-empty")
+    pair = (updated["es"].casefold(), updated["uk"].casefold())
+    if any(card is not target and (card["es"].casefold(), card["uk"].casefold()) == pair for card in cards):
+        problems.append("es/uk pair already exists")
+    if problems:
+        print(json.dumps({"error": "invalid update", "problems": problems}, ensure_ascii=False))
+        return 1
+    before = dict(target)
+    target.update(updated)
+    if not args.dry_run:
+        write_cards(cards, backup=not args.no_backup)
+    print(json.dumps({
+        "dry_run": args.dry_run,
+        "id": target["id"],
+        "before": before,
+        "after": target,
+    }, ensure_ascii=False, indent=2))
+
+
 def cmd_status(args) -> None:
     state = load_state()
     cards = read_cards()
@@ -215,8 +333,17 @@ def cmd_validate(args) -> None:
 
 
 def cmd_add(args) -> int:
-    source = Path(args.json_file) if args.json_file else Path(args.csv_file)
-    candidates = load_candidates(source)
+    if args.es or args.uk:
+        # Inline single card from a natural-language chat request.
+        candidates = [{
+            "es": args.es,
+            "uk": args.uk,
+            "topic": args.topic,
+            "example": args.example or "",
+        }]
+    else:
+        source = Path(args.json_file) if args.json_file else Path(args.csv_file)
+        candidates = load_candidates(source)
     cards = read_cards()
     existing_pairs = {(card["es"].casefold(), card["uk"].casefold()) for card in cards}
     used_pairs = set(existing_pairs)
@@ -284,15 +411,51 @@ def main() -> int:
     sub.add_parser("validate").set_defaults(func=cmd_validate)
 
     add = sub.add_parser("add")
-    group = add.add_mutually_exclusive_group(required=True)
+    group = add.add_mutually_exclusive_group(required=False)
     group.add_argument("--json", dest="json_file")
     group.add_argument("--csv", dest="csv_file")
+    add.add_argument("--es", default="", help="inline Spanish text (single card)")
+    add.add_argument("--uk", default="", help="inline Ukrainian translation (single card)")
     add.add_argument("--topic", default="", help="default topic when cards omit one")
+    add.add_argument("--example", default="", help="optional inline example sentence")
     add.add_argument("--dry-run", action="store_true")
     add.add_argument("--no-backup", action="store_true")
     add.set_defaults(func=cmd_add)
 
+    listing = sub.add_parser("list")
+    listing.add_argument("--topic", default="")
+    listing.add_argument("--limit", type=int, default=20, help="0 = all")
+    listing.set_defaults(func=cmd_list)
+
+    search = sub.add_parser("search")
+    search.add_argument("--query", required=True)
+    search.add_argument("--limit", type=int, default=20, help="0 = all")
+    search.set_defaults(func=cmd_search)
+
+    remove = sub.add_parser("remove")
+    remove.add_argument("--ids", default="", help="comma-separated card ids")
+    remove.add_argument("--es", default="", help="remove by exact Spanish text")
+    remove.add_argument("--dry-run", action="store_true")
+    remove.add_argument("--no-backup", action="store_true")
+    remove.set_defaults(func=cmd_remove)
+
+    update = sub.add_parser("update")
+    update.add_argument("--id", required=True)
+    for field in ("es", "uk", "topic", "example"):
+        update.add_argument(f"--{field}", default=None)
+    update.add_argument("--dry-run", action="store_true")
+    update.add_argument("--no-backup", action="store_true")
+    update.set_defaults(func=cmd_update)
+
     args = parser.parse_args()
+    if args.command == "add":
+        inline = bool(args.es or args.uk)
+        if inline and (args.json_file or args.csv_file):
+            parser.error("use either --es/--uk or --json/--csv, not both")
+        if inline and not (args.es and args.uk):
+            parser.error("inline add requires both --es and --uk")
+        if not inline and not (args.json_file or args.csv_file):
+            parser.error("add requires --json, --csv, or --es + --uk")
     return args.func(args) or 0
 
 
